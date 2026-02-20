@@ -1,142 +1,67 @@
-const db = require("../utils/db");
+const articleDbModel = require('../models/article')
 
-const getAllArticles = (req, res) => {
-  let sql = "SELECT * FROM article";
-  db.query(sql, (error, result) => {
-    res.render("index", {
-      articles: result,
-      noArticles: result.length === 0,
-    });
-  });
-};
+const articleModel = new articleDbModel();
 
-const deleteArticleBySlug = (req, res) => {
-  // Check if the 'deleted_articles' table exists
-  let sql = `SHOW TABLES LIKE 'deleted_articles'`;
-  db.query(sql, (error, result) => {
-    if (error) {
-      console.error("Database error:", error);
-      return res.status(500).json({ error: "Database error" });
+class articleController {
+  constructor() {
+    const articles = []
+  }
+
+  async getAllArticles(req, res) {
+    const articles = await articleModel.findAll()
+    res.status(201).json({articles: articles})
+  }
+
+  async getArticleBySlug(req, res) {
+    const article = await articleModel.findOne(req.params.slug)
+    res.status(201).json({article: article})
+  }
+
+  async getAllArticleByAuthor(req, res) {
+    const article = await articleModel.findMany(req.params.author_id)
+    res.status(201).json({article: article})
+  }
+
+  async createNewArticle(req, res) {
+    const newArticle = {
+      name: req.body.name,
+      slug: req.body.slug,
+      image: req.body.image,
+      body: req.body.body,
+      published: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      author_id: req.body.author_id
     }
-    // If the table does not exist, create it
-    if (result.length == 0) {
-      // Table 'deleted_articles' does not exist
-      let sql = `
-      CREATE TABLE IF NOT EXISTS deleted_articles (
-      id int NOT NULL AUTO_INCREMENT,
-      name varchar(255) NOT NULL,
-      slug varchar(255) NOT NULL,
-      image varchar(255) NOT NULL,
-      body longtext NOT NULL,
-      published datetime NOT NULL,
-      author_id int DEFAULT NULL,
-      PRIMARY KEY (id),
-      UNIQUE KEY (slug),
-      KEY (author_id)
-      );`;
-      db.query(sql, (error, result) => {
-        if (error) {
-          console.error("Database error:", error);
-          return res.status(500).json({ error: "Database error" });
-        }
-        console.log("Created new table 'deleted_articles'");
-      });
-    }
+    const articleId = await articleModel.create(newArticle)
+    res.status(201).json({
+      message: `created article with id ${articleId}`,
+      article: {id: articleId, ...newArticle}
+    })
+  }
 
-    // Table 'deleted_articles' exists
+  async updateArticle(req, res) {
+    const updateData = {}
 
-    let sql = `
-            INSERT IGNORE INTO deleted_articles (name, slug, image, body, published, author_id)
-            SELECT name, slug, image, body, published, author_id
-            FROM article
-            WHERE slug = ?;
-    `;
-    db.query(sql, [req.params.slug], (error, result) => {
-      if (error) {
-        console.error("Database error:", error);
-        return res.status(500).json({ error: "Database error" });
-      }
+    if (req.body.name !== undefined) updateData.name = req.body.name
+    if (req.body.slug !== undefined) updateData.slug = req.body.slug
+    if (req.body.image !== undefined) updateData.image = req.body.image
+    if (req.body.body !== undefined) updateData.body = req.body.body
+    if (req.body.published !== undefined) updateData.published = req.body.published
+    if (req.body.author_id !== undefined) updateData.author_id = req.body.author_id
 
-      if (result.affectedRows > 0) {
-        console.log(
-          `Article "${req.params.slug}" stored to deleted_articles successfully!`
-        );
-      } else {
-        console.log(
-          `Article "${req.params.slug}" already exists in deleted_articles.`
-        );
-      }
-    });
+    const updateRows = await articleModel.update(req.params.id, updateData)
+    res.status(201).json({
+      message: `updated article with id ${req.params.id}`,
+      article: {id: req.params.id, ...updateData }
+    })
+  }
 
-    //Finally delete the original article.
-    let sql2 = `DELETE FROM article WHERE slug ="${req.params.slug}"`;
-    db.query(sql2, [req.params.slug], (error, result) => {
-      if (error) {
-        console.error("Database error:", error);
-        return res.status(500).json({ error: "Database error" });
-      }
+  async deleteArticle(req, res) {
+    const deletedRows = await articleModel.delete(req.params.id)
+    res.status(201).json({
+      message: `deleted article with id ${req.params.id}`,
+      deletedRows: deletedRows
+    })
+  }
+}
 
-      if (result.affectedRows > 0) {
-        console.log(`Article "${req.params.slug}" deleted from articles.`);
-        return res.json({
-          success: true,
-          message: "Article deleted successfully.",
-        });
-      } else {
-        console.log(`Article "${req.params.slug}" not found in articles.`);
-        return res.json({ success: false, message: "Article not found." });
-      }
-    });
-  });
-};
-
-const getArticleBySlug = (req, res) => {
-  let sql = `SELECT * FROM article WHERE slug="${req.params.slug}"`;
-  db.query(sql, (error, result) => {
-    let article = result[0];
-    let author_id = article.author_id;
-    let sql = `SELECT * FROM author WHERE id="${author_id}"`;
-    db.query(sql, (error, result) => {
-      const author = result[0];
-      article[`author_name`] = author.name;
-      res.render("article", {
-        article: article,
-      });
-    });
-  });
-};
-
-const restoreArticles = (req, res) => {
-  let sql = `INSERT INTO article SELECT * FROM deleted_articles;`;
-  db.query(sql, (error, result) => {
-    if (error) {
-      console.error("Database error:", error);
-      return res.status(500).json({ success: false, error: "Database error" });
-    }
-    console.log("Restored 'article'");
-    let sql2 = `DROP TABLE deleted_articles;`;
-
-    db.query(sql2, (error, result) => {
-      if (error) {
-        console.error("Database error:", error);
-        return res.status(500).json({ success: false, error: "Database error" });
-      }
-      console.log("Deleted 'deleted_articles'");
-      res.json({
-        success: true,
-        message: "Restored articles successfully and deleted 'deleted_articles'!",
-      });
-    });
-  });
-
-  
-};
-
-module.exports = {
-  getAllArticles,
-  getArticleBySlug,
-  deleteArticleBySlug,
-  restoreArticles,
-};
-
-//{}
+module.exports = articleController
