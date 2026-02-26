@@ -7,6 +7,7 @@ class userController {
         const reqUsername = req.body.username;
         const reqEmail = req.body.email;
         const reqPassword = req.body.password;
+        let reqRole = req.body.role
 
         const existingUser = await userModel.findOne(reqUsername)
         if (existingUser) {
@@ -16,18 +17,30 @@ class userController {
         if (!reqPassword || reqPassword.length < 6) {
             return res.status(400).json({ message: 'Password must be at least 6 characters long' })
         }
+
+        if (!reqRole || reqRole === 'user') {
+            reqRole = 'user';
+        } else if (reqRole === 'admin') {
+            reqRole = 'admin';
+        } else {
+            return res.status(400).json({ message: 'Invalid role. Only "user" or "admin" allowed.' });
+        }
+
         const cryptPassword = await bcrypt.hash(reqPassword, 10)
 
         const registeredId = await userModel.create({
             username: reqUsername,
             email: reqEmail,
-            password: cryptPassword
+            password: cryptPassword,
+            role: reqRole
         })
+        
         if(registeredId) {
             const userData = await userModel.findById(registeredId)
             req.session.user = {
                 username: userData.username,
-                user_id: userData.id
+                user_id: userData.id,
+                role: userData.role
             }
             res.status(201).json({
                 message: 'New user is registered.',
@@ -52,7 +65,8 @@ class userController {
 
         req.session.user = {
             username: user.username,
-            user_id: user.id
+            user_id: user.id,
+            role: user.role
         }
 
         res.status(200).json({
