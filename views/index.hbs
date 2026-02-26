@@ -3,7 +3,9 @@
 <div class="article-list">
   {{#articles}}
     <article>
-      <a href="/article/delete/{{slug}}" class="delete-link">delete</a>
+      {{#ifEquals ../user.role "admin"}}
+        <a href="/article/delete/{{id}}" class="delete-link">Delete</a>
+      {{/ifEquals}}
 
       <a href="/article/{{slug}}">
         <img src="/images/{{image}}" />

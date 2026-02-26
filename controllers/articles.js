@@ -3,24 +3,48 @@ const articleDbModel = require('../models/article')
 const articleModel = new articleDbModel();
 
 class articleController {
-  constructor() {
-    const articles = []
-  }
+  constructor() {}
 
   async getAllArticles(req, res) {
     const articles = await articleModel.findAll()
-    res.status(201).json({articles: articles})
+    if (!articles || articles.length === 0) {
+      return res.render('index', {
+        articles: [],
+        noArticles: true,
+        msg: 'No articles found'
+      })
+    }
+
+    res.render('index', {
+      articles: articles,
+      noArticles: false
+    })
   }
+
 
   async getArticleBySlug(req, res) {
     const article = await articleModel.findOne(req.params.slug)
-    res.status(201).json({article: article})
+    if (!article) {
+      return res.render('index', {
+        articles: [],
+        msg: 'Article not found'
+      })
+    }
+
+    res.render('article', {
+      article: article
+    })
   }
 
+
   async getAllArticleByAuthor(req, res) {
-    const article = await articleModel.findMany(req.params.author_id)
-    res.status(201).json({article: article})
-  }
+  const articles = await articleModel.findMany(req.params.author_id)
+  res.render('index', {
+    articles: articles,
+    noArticles: articles.length === 0
+  })
+}
+
 
   async createNewArticle(req, res) {
     const newArticle = {
@@ -31,13 +55,12 @@ class articleController {
       published: new Date().toISOString().slice(0, 19).replace('T', ' '),
       author_id: req.body.author_id
     }
-    const articleId = await articleModel.create(newArticle)
-    res.status(201).json({
-      message: `created article with id ${articleId}`,
-      article: {id: articleId, ...newArticle}
-    })
+    await articleModel.create(newArticle)
+
+    res.redirect('/')
   }
 
+  
   async updateArticle(req, res) {
     const updateData = {}
 
@@ -48,20 +71,16 @@ class articleController {
     if (req.body.published !== undefined) updateData.published = req.body.published
     if (req.body.author_id !== undefined) updateData.author_id = req.body.author_id
 
-    const updateRows = await articleModel.update(req.params.id, updateData)
-    res.status(201).json({
-      message: `updated article with id ${req.params.id}`,
-      article: {id: req.params.id, ...updateData }
-    })
+    await articleModel.update(req.params.id, updateData)
+
+    res.redirect('/')
   }
 
+
   async deleteArticle(req, res) {
-    const deletedRows = await articleModel.delete(req.params.id)
-    res.status(201).json({
-      message: `deleted article with id ${req.params.id}`,
-      deletedRows: deletedRows
-    })
+    await articleModel.delete(req.params.id)
+    res.redirect('/article/')
   }
 }
 
-module.exports = articleController
+module.exports = articleController;

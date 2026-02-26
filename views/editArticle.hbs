@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Article</title>
+    <link rel="stylesheet" href="/style/app.css">
+</head>
+<body>
+    <header>
+        <a href="/">Yoga Blog For Winners</a>
+        <hr>
+    </header>
+
+    <main>
+        <h1>Edit Article</h1>
+
+        <form action="/article/{{id}}" method="POST">
+            <!-- We'll use a hidden input to spoof PUT method if needed -->
+            <input type="hidden" name="_method" value="PUT">
+
+            <label for="name">Title:</label><br>
+            <input type="text" name="name" id="name" value="{{name}}" required><br><br>
+
+            <label for="slug">Slug:</label><br>
+            <input type="text" name="slug" id="slug" value="{{slug}}" required><br><br>
+
+            <label for="image">Image filename:</label><br>
+            <input type="text" name="image" id="image" value="{{image}}"><br><br>
+
+            <label for="body">Content:</label><br>
+            <textarea name="body" id="body" rows="10">{{body}}</textarea><br><br>
+
+            <label for="author_id">Author ID:</label><br>
+            <input type="number" name="author_id" id="author_id" value="{{author_id}}" required><br><br>
+
+            <button type="submit">Update Article</button>
+        </form>
+    </main>
+</body>
+</html>

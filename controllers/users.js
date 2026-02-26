@@ -11,11 +11,11 @@ class userController {
 
         const existingUser = await userModel.findOne(reqUsername)
         if (existingUser) {
-            return res.status(400).json({ message: 'Username already taken' })
+            return res.render('register', { msg: 'Username already taken' })
         }
 
         if (!reqPassword || reqPassword.length < 6) {
-            return res.status(400).json({ message: 'Password must be at least 6 characters long' })
+            return res.render('register', { msg: 'Password must be at least 6 characters long' })
         }
 
         if (!reqRole || reqRole === 'user') {
@@ -23,7 +23,7 @@ class userController {
         } else if (reqRole === 'admin') {
             reqRole = 'admin';
         } else {
-            return res.status(400).json({ message: 'Invalid role. Only "user" or "admin" allowed.' });
+            return res.render('register', { msg: 'Invalid role. Only "user" or "admin" allowed.' })
         }
 
         const cryptPassword = await bcrypt.hash(reqPassword, 10)
@@ -34,7 +34,7 @@ class userController {
             password: cryptPassword,
             role: reqRole
         })
-        
+
         if(registeredId) {
             const userData = await userModel.findById(registeredId)
             req.session.user = {
@@ -42,36 +42,43 @@ class userController {
                 user_id: userData.id,
                 role: userData.role
             }
-            res.status(201).json({
-                message: 'New user is registered.',
-                user_session: req.session.user
+            res.render('index', { 
+                articles: [], 
+                msg: `New user ${userData.username} registered successfully` 
             })
         }
     }
+
+
+    async showLoginForm(req, res) {
+        res.render('login')
+    }
+
 
     async login(req, res) {
         const reqUsername = req.body.username
         const reqPassword = req.body.password
 
-        const user = await userModel.findOne(reqUsername)
-        if (!user) {
-            return res.status(400).json({ message: 'User not found' })
+        const userData = await userModel.findOne(reqUsername)
+        if (!userData) {
+            return res.render('login', { msg: 'User not found' })
         }
 
-        const passwordMatch = await bcrypt.compare(reqPassword, user.password)
+        const passwordMatch = await bcrypt.compare(reqPassword, userData.password)
         if (!passwordMatch) {
-            return res.status(400).json({ message: 'Invalid password' })
+            return res.render('login', { msg: 'Invalid password' })
         }
 
         req.session.user = {
-            username: user.username,
-            user_id: user.id,
-            role: user.role
+            username: userData.username,
+            user_id: userData.id,
+            role: userData.role
         }
 
-        res.status(200).json({
-            message: 'Login successful',
-            user_session: req.session.user
+        res.render('index', { 
+            articles: [],
+            msg: `Welcome back, ${userData.username}`,
+            user: req.session.user
         })
     }
 }
